@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-
-// Polygon.io 기관 평가 데이터 수집 (일 1회 Cron)
 const POLYGON_BASE = 'https://api.polygon.io'
 
-export async function POST() {
+export async function POST(request: Request) {
+  const secret = process.env.CRON_SECRET
+  if (secret) {
+    const auth = request.headers.get('authorization')
+    if (auth !== `Bearer ${secret}`) {
+      return NextResponse.json({ error: 'Unauthorized', code: 401 }, { status: 401 })
+    }
+  }
+
   const supabase = createAdminClient()
 
   try {
