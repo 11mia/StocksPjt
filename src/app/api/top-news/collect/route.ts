@@ -26,7 +26,7 @@ async function runCollect() {
   if (!anthropicKey) return NextResponse.json({ error: 'ANTHROPIC_API_KEY not set' }, { status: 500 })
 
   const res = await fetch(
-    `https://newsapi.org/v2/everything?q=United+States+OR+America+OR+White+House+OR+Trump+OR+Federal+Reserve+OR+US+economy+OR+Pentagon+OR+Congress+OR+Wall+Street+OR+tariff+OR+dollar+OR+inflation&language=en&sortBy=publishedAt&pageSize=30&apiKey=${apiKey}`,
+    `https://newsapi.org/v2/everything?q=United+States+OR+America+OR+White+House+OR+Trump+OR+Federal+Reserve+OR+US+economy+OR+Pentagon+OR+Congress+OR+Wall+Street+OR+tariff+OR+dollar+OR+inflation&language=en&sortBy=publishedAt&pageSize=50&apiKey=${apiKey}`,
     { cache: 'no-store' }
   )
   if (!res.ok) return NextResponse.json({ error: `NewsAPI error: ${res.status}` }, { status: 500 })
@@ -34,7 +34,7 @@ async function runCollect() {
   const json = await res.json()
   const articles: RawArticle[] = (json.articles ?? [])
     .filter((a: RawArticle) => a.title && a.title !== '[Removed]' && isValidArticleUrl(a.url))
-    .slice(0, 20)
+    .slice(0, 30)
 
   if (articles.length === 0) return NextResponse.json({ error: 'No articles found' }, { status: 500 })
 
@@ -49,9 +49,9 @@ async function runCollect() {
     model: 'claude-sonnet-4-6',
     max_tokens: 3000,
     system: `당신은 미국 주식 투자자를 위한 글로벌 뉴스 필터링 AI입니다.
-아래 엄격한 기준에 따라 뉴스를 채점하고 TOP 7을 선정합니다.
+아래 엄격한 기준에 따라 뉴스를 채점하고 TOP 10을 선정합니다.
 
-[TOP 7 선정 기준]
+[TOP 10 선정 기준]
 
 1. 시의성 필터 (필수)
    - 24시간 이내에 발생했거나 업데이트된 뉴스만 대상으로 합니다.
@@ -72,7 +72,7 @@ async function runCollect() {
     messages: [
       {
         role: 'user',
-        content: `다음 뉴스 목록을 위 기준으로 채점하여 TOP 7을 선정하고 한글 요약을 작성하세요.
+        content: `다음 뉴스 목록을 위 기준으로 채점하여 TOP 10을 선정하고 한글 요약을 작성하세요.
 
 ${articlesText}
 

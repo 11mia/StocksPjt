@@ -95,7 +95,7 @@ export default async function DashboardHome() {
         <div className="flex items-end justify-between mb-4">
           <div>
             <h1 className="text-xl font-bold text-zinc-900">
-              🇺🇸 오늘의 미국 주요 이슈 TOP 7
+              🇺🇸 오늘의 미국 주요 이슈 TOP 10
             </h1>
             <p className="text-xs text-zinc-500 mt-0.5">
               AI가 선별한 24시간 내 글로벌 영향력 최상위 이슈

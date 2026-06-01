@@ -90,9 +90,9 @@ async function fetchTopUsNewsInternal(): Promise<NewsItem[]> {
     model: 'claude-sonnet-4-6',
     max_tokens: 3000,
     system: `당신은 미국 주식 투자자를 위한 글로벌 뉴스 필터링 AI입니다.
-아래 엄격한 기준에 따라 뉴스를 채점하고 TOP 7을 선정합니다.
+아래 엄격한 기준에 따라 뉴스를 채점하고 TOP 10을 선정합니다.
 
-[TOP 7 선정 기준]
+[TOP 10 선정 기준]
 
 1. 시의성 필터 (필수)
    - 24시간 이내에 발생했거나 업데이트된 뉴스만 대상으로 합니다.
@@ -107,7 +107,7 @@ async function fetchTopUsNewsInternal(): Promise<NewsItem[]> {
 3. 자산 전이도 (Transmission)
    - S&P 500, Nasdaq, 미국 국채 금리, 달러 인덱스 중 최소 1개 이상에 직접적인 변동성을 유발할 가능성이 높은 뉴스를 우선합니다.
 
-4. 스코어링 (내부 채점 — 아래 점수 합산 순으로 TOP 7 선출)
+4. 스코어링 (내부 채점 — 아래 점수 합산 순으로 TOP 10 선출)
    - 시장 긴급성(urgencyScore): 1~5점 (5=즉각적·광범위한 시장 충격 예상)
    - 미국 증시 연관도(marketScore): 1~5점 (5=S&P500·Nasdaq에 직접 영향)
    - totalScore = urgencyScore + marketScore (최대 10점)
@@ -120,7 +120,7 @@ async function fetchTopUsNewsInternal(): Promise<NewsItem[]> {
     messages: [
       {
         role: 'user',
-        content: `다음 뉴스 목록을 위 기준으로 채점하여 TOP 7을 선정하고 한글 요약을 작성하세요.
+        content: `다음 뉴스 목록을 위 기준으로 채점하여 TOP 10을 선정하고 한글 요약을 작성하세요.
 
 ${articlesText}
 
