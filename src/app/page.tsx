@@ -10,6 +10,7 @@ import {
   type NewsItem,
 } from '@/lib/top-news'
 import { isValidArticleUrl } from '@/lib/url-utils'
+import { Badge, getTagVariant } from '@/components/ui/badge'
 
 const CATEGORY_LABELS: Record<string, string> = {
   geopolitical: '지정학',
@@ -43,6 +44,7 @@ export default async function DashboardHome() {
     urgencyScore: row.urgency_score,
     marketScore: row.market_score,
     totalScore: row.total_score,
+    tags: Array.isArray(row.tags) ? row.tags : [],
     sourceUrl: row.source_url ?? '#',
     sourceName: row.source_name ?? '',
     publishedAt: row.published_at ?? new Date().toISOString(),
@@ -151,9 +153,20 @@ export default async function DashboardHome() {
                   </div>
 
                   {/* Title */}
-                  <h2 className="font-semibold text-zinc-900 text-sm leading-snug mb-1">
+                  <h2 className="font-semibold text-zinc-900 text-sm leading-snug mb-1.5">
                     {issue.koreanTitle}
                   </h2>
+
+                  {/* Theme tags */}
+                  {issue.tags && issue.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-1.5">
+                      {issue.tags.map(tag => (
+                        <Badge key={tag} variant={getTagVariant(tag)}>
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Summary */}
                   {issue.koreanSummary && (

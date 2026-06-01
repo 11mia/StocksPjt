@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { isValidArticleUrl } from '@/lib/url-utils'
+import { Badge, type BadgeVariant } from '@/components/ui/badge'
 
 interface Issue {
   id: string
@@ -21,11 +22,17 @@ const CATEGORY_LABELS: Record<string, string> = {
   political: '정치',
   '전체': '전체',
 }
-const CATEGORY_COLORS: Record<string, string> = {
-  geopolitical: 'bg-red-100 text-red-700',
-  macro: 'bg-blue-100 text-blue-700',
-  supply_chain: 'bg-amber-100 text-amber-700',
-  political: 'bg-purple-100 text-purple-700',
+const CATEGORY_TO_TAG: Record<string, string> = {
+  geopolitical: '지정학',
+  macro: '정책/금리',
+  supply_chain: '공급망',
+  political: '지정학',
+}
+const CATEGORY_VARIANT: Record<string, BadgeVariant> = {
+  geopolitical: 'geopolitical',
+  macro: 'macro',
+  supply_chain: 'supply_chain',
+  political: 'geopolitical',
 }
 
 function IssueList({ category }: { category: string }) {
@@ -70,20 +77,18 @@ function IssueList({ category }: { category: string }) {
       {issues.map(issue => (
         <li key={issue.id}>
           <div className="bg-white rounded-xl border border-zinc-200 hover:border-blue-300 hover:shadow-sm transition-all p-4">
-            <div className="flex items-start justify-between gap-2 mb-2">
+            <div className="mb-2">
               <Link
                 href={`/issues/${issue.id}`}
-                className="text-sm font-semibold text-zinc-900 leading-snug hover:text-blue-700 transition-colors"
+                className="text-sm font-semibold text-zinc-900 leading-snug hover:text-blue-700 transition-colors block mb-1.5"
               >
                 {issue.title}
               </Link>
-              <span
-                className={`flex-shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${
-                  CATEGORY_COLORS[issue.category] ?? 'bg-zinc-100 text-zinc-600'
-                }`}
-              >
-                {CATEGORY_LABELS[issue.category] ?? issue.category}
-              </span>
+              <div className="flex flex-wrap gap-1">
+                <Badge variant={CATEGORY_VARIANT[issue.category] ?? 'default'}>
+                  {CATEGORY_TO_TAG[issue.category] ?? CATEGORY_LABELS[issue.category] ?? issue.category}
+                </Badge>
+              </div>
             </div>
 
             {issue.korean_summary ? (
