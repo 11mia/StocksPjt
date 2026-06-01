@@ -129,10 +129,13 @@ export default async function DashboardHome() {
                 }`}
               >
                 <div className="px-4 py-3">
-                  {/* Top row: rank + badges + score */}
-                  <div className="flex items-center gap-2 mb-1.5">
+                  {/* Top row: rank + 중요도 + 카테고리 + 태그 한 줄 */}
+                  <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
                     <span className="flex-shrink-0 w-6 h-6 rounded-full bg-zinc-900 text-white text-xs font-bold flex items-center justify-center">
                       {issue.rank}
+                    </span>
+                    <span className="text-xs text-zinc-500 font-medium">
+                      {IMPORTANCE_LABELS[issue.importance]}
                     </span>
                     <span
                       className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
@@ -141,9 +144,11 @@ export default async function DashboardHome() {
                     >
                       {issue.categoryLabel}
                     </span>
-                    <span className="text-xs text-zinc-500">
-                      {IMPORTANCE_LABELS[issue.importance]}
-                    </span>
+                    {issue.tags?.map(tag => (
+                      <Badge key={tag} variant={getTagVariant(tag)}>
+                        {tag}
+                      </Badge>
+                    ))}
                     {issue.totalScore > 0 && (
                       <span
                         className="ml-auto flex items-center gap-1"
@@ -166,8 +171,8 @@ export default async function DashboardHome() {
                     {issue.koreanTitle}
                   </h2>
 
-                  {/* Theme tags */}
-                  {issue.tags && issue.tags.length > 0 && (
+                  {/* Theme tags — 위 한 줄로 통합되어 아래 별도 렌더링 제거 */}
+                  {false && issue.tags && issue.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1 mb-1.5">
                       {issue.tags.map(tag => (
                         <Badge key={tag} variant={getTagVariant(tag)}>
