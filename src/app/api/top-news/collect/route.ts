@@ -68,79 +68,32 @@ async function runCollect() {
 
   if (articles.length === 0) return NextResponse.json({ error: 'No articles found' }, { status: 500 })
 
+  // 입력 토큰 최소화 — URL/출처 제거, 상위 15개만 전달
+  const topArticles = articles.slice(0, 15)
   const client = new Anthropic({ apiKey: anthropicKey })
-  const articlesText = articles
+  const articlesText = topArticles
     .map((a, i) =>
-      `[${i + 1}] 제목: ${a.title}\n설명: ${a.description ?? '없음'}\nURL: ${a.url}\n출처: ${a.source?.name ?? '알 수 없음'}\n발행일: ${a.publishedAt}`
+      `[${i + 1}] ${a.title} | ${a.description?.slice(0, 80) ?? ''} | ${a.publishedAt}`
     )
-    .join('\n\n')
+    .join('\n')
 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 4000,
-    system: `당신은 미국 주식 투자자를 위한 글로벌 뉴스 필터링 AI입니다.
-아래 엄격한 기준에 따라 뉴스를 채점하고 TOP 10을 선정합니다.
-모든 출력(한글 제목, 요약, 분석, 태그)은 반드시 한국어로 작성하세요.
-
-[TOP 10 선정 기준]
-
-1. 시의성 필터 (필수)
-   - 24시간 이내에 발생했거나 업데이트된 뉴스만 대상으로 합니다.
-
-2. 키워드 가중치 사전 (아래 키워드 포함 시 우선 선정)
-   - 거시경제/정책: Fed, FOMC, Interest Rate, Inflation, CPI, Rate Cut, Rate Hike
-   - 지정학적 리스크: Sanctions, Tariff, Trade War, Geopolitical Risk, Conflict, Alliance, Reconstruction
-   - 글로벌 공급망: Semiconductor, Crude Oil, Natural Gas, Rare Earth, Supply Chain Disruption, Logistics
-   - 미국 증시/특수 섹터: Treasury Yield, Dollar Index, Earnings, BDC, Dividend Stability, Defense Stock
-
-3. 카테고리별 가중치
-   ① 매크로/정책(macro): 연준 금리 결정, 통화 정책 변동, 글로벌 관세·수출입 규제
-   ② 지정학(geopolitical): 군사 충돌, 외교적 제재, 동맹 변화, 공급망 봉쇄 리스크
-   ③ 공급망/원자재(supply_chain): 반도체, 에너지(원유·천연가스), 핵심 원자재 공급 차질·가격 급등락
-   ④ 기업 펀더멘탈(fundamental): 미국 시총 상위 기업·주요 섹터(방산, 기술, 고배당 BDC)에 직접 영향
-
-4. 자산 전이도: S&P 500, Nasdaq, 미국 국채 금리, 달러 인덱스에 직접 변동성 유발 가능성
-
-5. 스코어링
-   - 시장 긴급성(urgencyScore): 1~5점 (5=즉각적·광범위한 시장 충격 예상)
-   - 미국 증시 연관도(marketScore): 1~5점 (5=S&P500·Nasdaq에 직접 영향)
-   - totalScore = urgencyScore + marketScore
-   - importance: 8~10 → critical, 5~7 → high, 2~4 → medium
-
-6. 테마 태그 (1~2개)
-   다음 중에서 뉴스 내용에 가장 적합한 한글 태그를 1~2개 선택하세요:
-   "정책/금리", "지정학", "공급망", "미국증시", "에너지", "배당/BDC", "반도체", "기업실적"
-
-7. AI 분석 3개 항목 (반드시 한국어로 작성)
-   ① koreanSummary: 핵심 3줄 요약 — 무슨 일인지(1문장) + 왜 중요한지(1문장) + 자산 전이 영향(1문장)
-   ② priceImpactReason: 주가 영향 예측 이유 — 단기(1~5 거래일) 주가 방향성과 근거 2~3문장
-   ③ institutionTrend: 기관 투자 의견 트렌드 — 기관 투자자 예상 반응 및 섹터 매수/매도 트렌드 2~3문장`,
+    max_tokens: 5000,
+    system: `미국 주식 투자자용 뉴스 필터링 AI. TOP 10 선정 후 한국어로 분석.
+스코어링: urgencyScore(1~5 시장긴급성) + marketScore(1~5 미국증시연관도) 합산 상위 10개 선출.
+키워드 우선: Fed/FOMC/금리/관세/반도체/원유/제재/무역전쟁/Treasury Yield/Earnings/BDC.
+카테고리: geopolitical/macro/supply_chain/fundamental.
+importance: 8~10→critical, 5~7→high, 2~4→medium.
+태그(1~2개): "정책/금리","지정학","공급망","미국증시","에너지","배당/BDC","반도체","기업실적".`,
     messages: [
       {
         role: 'user',
-        content: `다음 뉴스 목록을 위 기준으로 채점하여 TOP 10을 선정하고, 한글 분석 3개 항목과 테마 태그를 작성하세요.
+        content: `뉴스 ${topArticles.length}개를 채점해 TOP 10을 선정하고 아래 JSON으로만 응답:
 
 ${articlesText}
 
-반드시 아래 JSON 형식으로만 응답하세요:
-{
-  "issues": [
-    {
-      "rank": 1,
-      "articleIndex": <1~${articles.length}>,
-      "urgencyScore": <1~5>,
-      "marketScore": <1~5>,
-      "totalScore": <합계>,
-      "koreanTitle": "<한글 제목 35자 이내>",
-      "koreanSummary": "<핵심 3줄 요약: 무슨 일(1문장) + 왜 중요한지(1문장) + 자산 전이 영향(1문장)>",
-      "priceImpactReason": "<주가 영향 예측 이유: 단기 주가 방향성과 근거 2~3문장>",
-      "institutionTrend": "<기관 투자 의견 트렌드: 기관 투자자 예상 반응 및 섹터 매수/매도 트렌드 2~3문장>",
-      "category": "<geopolitical|macro|supply_chain|fundamental>",
-      "importance": "<critical|high|medium>",
-      "tags": ["<태그1>", "<태그2 선택적>"]
-    }
-  ]
-}`,
+{"issues":[{"rank":1,"articleIndex":<1~${topArticles.length}>,"urgencyScore":<1~5>,"marketScore":<1~5>,"totalScore":<합계>,"koreanTitle":"<35자이내>","koreanSummary":"<무슨일+왜중요+자산영향 각1문장>","priceImpactReason":"<단기주가방향+근거 1~2문장>","institutionTrend":"<기관반응+섹터트렌드 1~2문장>","category":"<geopolitical|macro|supply_chain|fundamental>","importance":"<critical|high|medium>","tags":["<태그1>"]}]}`,
       },
     ],
   })
@@ -164,7 +117,7 @@ ${articlesText}
     importance: string
     tags?: string[]
   }) => {
-    const original = articles[(item.articleIndex ?? 1) - 1] ?? articles[0]
+    const original = topArticles[(item.articleIndex ?? 1) - 1] ?? topArticles[0]
     const urgency = Math.min(5, Math.max(1, item.urgencyScore ?? 3))
     const market = Math.min(5, Math.max(1, item.marketScore ?? 3))
     return {
