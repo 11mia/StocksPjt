@@ -104,31 +104,35 @@ async function fetchTopUsNewsInternal(): Promise<NewsItem[]> {
     '"trade war"', 'geopolitical', 'conflict', '"rate cut"', '"rate hike"',
   ].join('+OR+')
 
-  const res = await fetch(
-    `https://newsapi.org/v2/everything?q=${query}&language=en&sortBy=publishedAt&pageSize=50&apiKey=${apiKey}`,
-    { cache: 'no-store' }
-  )
+  const from24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  const from48h = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
 
-  if (!res.ok) throw new Error(`NewsAPI error: ${res.status}`)
-  const json = await res.json()
-
-  // 24시간 필터 — publishedAt 기준 코드 레벨에서 명시적 제한
-  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000)
-
-  // 키워드 점수 기반 사전 필터링 — 24시간 이내 + 키워드 관련도 상위 25개를 Claude에 전달
-  const articles: RawArticle[] = (json.articles ?? [])
-    .filter((a: RawArticle) =>
-      a.title &&
-      a.title !== '[Removed]' &&
-      isValidArticleUrl(a.url) &&
-      a.publishedAt &&
-      new Date(a.publishedAt) >= cutoff
+  const fetchFiltered = async (from: string): Promise<RawArticle[]> => {
+    const res = await fetch(
+      `https://newsapi.org/v2/everything?q=${query}&language=en&sortBy=publishedAt&pageSize=50&from=${from}&apiKey=${apiKey}`,
+      { cache: 'no-store' }
     )
-    .map((a: RawArticle) => ({ ...a, kwScore: calcKeywordScore(a.title, a.description) }))
-    .sort((a: { kwScore: number }, b: { kwScore: number }) => b.kwScore - a.kwScore)
-    .slice(0, 25)
+    if (!res.ok) return []
+    const json = await res.json()
+    const cutoff = new Date(from)
+    return (json.articles ?? [])
+      .filter((a: RawArticle) =>
+        a.title &&
+        a.title !== '[Removed]' &&
+        isValidArticleUrl(a.url) &&
+        a.publishedAt &&
+        new Date(a.publishedAt) >= cutoff
+      )
+      .map((a: RawArticle) => ({ ...a, kwScore: calcKeywordScore(a.title, a.description) }))
+      .sort((a: { kwScore: number }, b: { kwScore: number }) => b.kwScore - a.kwScore)
+      .slice(0, 25)
+  }
 
-  if (articles.length === 0) throw new Error('No articles found within 24 hours')
+  // 24시간 이내 기사 우선, 없으면 48시간으로 폴백
+  let articles = await fetchFiltered(from24h)
+  if (articles.length === 0) articles = await fetchFiltered(from48h)
+
+  if (articles.length === 0) throw new Error('No articles found')
 
   const anthropicKey = process.env.ANTHROPIC_API_KEY
   if (!anthropicKey) throw new Error('ANTHROPIC_API_KEY not set')
