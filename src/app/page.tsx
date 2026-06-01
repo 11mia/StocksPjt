@@ -146,10 +146,17 @@ export default async function DashboardHome() {
                     </span>
                     {issue.totalScore > 0 && (
                       <span
-                        className="ml-auto text-xs font-mono text-zinc-400"
+                        className="ml-auto flex items-center gap-1"
                         title={`긴급성 ${issue.urgencyScore}/5 + 증시연관 ${issue.marketScore}/5`}
                       >
-                        {issue.urgencyScore}+{issue.marketScore}={issue.totalScore}
+                        <span className="text-xs text-zinc-400">영향도</span>
+                        <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${
+                          issue.totalScore >= 9 ? 'bg-red-100 text-red-600' :
+                          issue.totalScore >= 7 ? 'bg-orange-100 text-orange-600' :
+                          'bg-zinc-100 text-zinc-500'
+                        }`}>
+                          {issue.totalScore}/10
+                        </span>
                       </span>
                     )}
                   </div>
