@@ -2,52 +2,188 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import SignOutButton from '@/features/auth/SignOutButton'
+import {
+  relativeTime,
+  CATEGORY_COLORS,
+  IMPORTANCE_COLORS,
+  IMPORTANCE_LABELS,
+  type NewsItem,
+} from '@/lib/top-news'
+import { isValidArticleUrl } from '@/lib/url-utils'
+
+const CATEGORY_LABELS: Record<string, string> = {
+  geopolitical: '지정학',
+  macro: '매크로/정책',
+  supply_chain: '공급망/원자재',
+  fundamental: '기업 펀더멘탈',
+}
 
 export default async function DashboardHome() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
     redirect('/login')
   }
 
+  const { data: rows } = await supabase
+    .from('top_news_cache')
+    .select('*')
+    .order('rank', { ascending: true })
+
+  const topIssues: NewsItem[] = (rows ?? []).map(row => ({
+    rank: row.rank,
+    koreanTitle: row.korean_title,
+    koreanSummary: row.korean_summary,
+    category: row.category,
+    categoryLabel: CATEGORY_LABELS[row.category] ?? row.category,
+    importance: row.importance as NewsItem['importance'],
+    urgencyScore: row.urgency_score,
+    marketScore: row.market_score,
+    totalScore: row.total_score,
+    sourceUrl: row.source_url ?? '#',
+    sourceName: row.source_name ?? '',
+    publishedAt: row.published_at ?? new Date().toISOString(),
+  }))
+
+  const cachedAt: string | null = rows?.[0]?.cached_at ?? null
+
   return (
     <div className="min-h-screen bg-zinc-50">
-      <nav className="bg-white border-b border-zinc-200 px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          <span className="text-lg font-bold text-zinc-900">StockRadar</span>
-          <Link href="/watchlist" className="text-sm text-zinc-600 hover:text-zinc-900 transition-colors">Watchlist</Link>
-          <Link href="/issues" className="text-sm text-zinc-600 hover:text-zinc-900 transition-colors">Issues</Link>
-          <Link href="/alerts" className="text-sm text-zinc-600 hover:text-zinc-900 transition-colors">Alerts</Link>
-        </div>
-        <SignOutButton />
-      </nav>
-      <main className="max-w-4xl mx-auto p-8">
-        <h1 className="text-2xl font-bold text-zinc-900 mb-2">대시보드</h1>
-        <p className="text-zinc-500 mb-8">{user.email}</p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <nav className="bg-white border-b border-zinc-200 px-6 h-14 flex items-center justify-between">
+        <div className="flex items-center gap-1">
+          <Link href="/" className="flex items-center gap-2 mr-3">
+            <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 10L4.5 6L7 8.5L10 4L13 6" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <span className="text-base font-bold text-zinc-900 tracking-tight">StockRadar</span>
+          </Link>
+          <Link
+            href="/"
+            className="px-3 py-1.5 text-sm font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-all"
+          >
+            Dashboard
+          </Link>
           <Link
             href="/watchlist"
-            className="p-6 bg-white rounded-xl border border-zinc-200 hover:border-blue-300 transition-colors"
+            className="px-3 py-1.5 text-sm font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-all"
           >
-            <h2 className="font-semibold text-zinc-900 mb-1">Watchlist</h2>
-            <p className="text-sm text-zinc-500">관심 종목 관리</p>
+            Watchlist
           </Link>
           <Link
             href="/issues"
-            className="p-6 bg-white rounded-xl border border-zinc-200 hover:border-blue-300 transition-colors"
+            className="px-3 py-1.5 text-sm font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-all"
           >
-            <h2 className="font-semibold text-zinc-900 mb-1">글로벌 이슈</h2>
-            <p className="text-sm text-zinc-500">최신 이슈 피드</p>
+            글로벌 이슈
           </Link>
           <Link
             href="/alerts"
-            className="p-6 bg-white rounded-xl border border-zinc-200 hover:border-blue-300 transition-colors"
+            className="px-3 py-1.5 text-sm font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-all"
           >
-            <h2 className="font-semibold text-zinc-900 mb-1">알림</h2>
-            <p className="text-sm text-zinc-500">AI 분석 알림</p>
+            알림
           </Link>
         </div>
+        <SignOutButton />
+      </nav>
+
+      <main className="max-w-4xl mx-auto px-4 py-5">
+        {/* Header */}
+        <div className="flex items-end justify-between mb-4">
+          <div>
+            <h1 className="text-xl font-bold text-zinc-900">
+              🇺🇸 오늘의 미국 주요 이슈 TOP 7
+            </h1>
+            <p className="text-xs text-zinc-500 mt-0.5">
+              AI가 선별한 24시간 내 글로벌 영향력 최상위 이슈
+            </p>
+          </div>
+          {cachedAt && (
+            <div className="text-right">
+              <p className="text-xs text-zinc-400">
+                {relativeTime(cachedAt)} 업데이트
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Issues list */}
+        {topIssues.length === 0 ? (
+          <div className="bg-white rounded-xl border border-zinc-200 p-8 text-center mb-5">
+            <p className="text-zinc-400 text-sm">아직 수집된 이슈가 없습니다.</p>
+          </div>
+        ) : (
+          <div className="space-y-2 mb-5" data-testid="top-issues-list">
+            {topIssues.map((issue) => (
+              <article
+                key={issue.rank}
+                className={`bg-white rounded-xl border border-l-4 border-zinc-200 hover:shadow-md transition-all ${
+                  IMPORTANCE_COLORS[issue.importance] ?? ''
+                }`}
+              >
+                <div className="px-4 py-3">
+                  {/* Top row: rank + badges + score */}
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-zinc-900 text-white text-xs font-bold flex items-center justify-center">
+                      {issue.rank}
+                    </span>
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
+                        CATEGORY_COLORS[issue.category] ?? 'bg-zinc-100 text-zinc-600 border-zinc-200'
+                      }`}
+                    >
+                      {issue.categoryLabel}
+                    </span>
+                    <span className="text-xs text-zinc-500">
+                      {IMPORTANCE_LABELS[issue.importance]}
+                    </span>
+                    {issue.totalScore > 0 && (
+                      <span
+                        className="ml-auto text-xs font-mono text-zinc-400"
+                        title={`긴급성 ${issue.urgencyScore}/5 + 증시연관 ${issue.marketScore}/5`}
+                      >
+                        {issue.urgencyScore}+{issue.marketScore}={issue.totalScore}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Title */}
+                  <h2 className="font-semibold text-zinc-900 text-sm leading-snug mb-1">
+                    {issue.koreanTitle}
+                  </h2>
+
+                  {/* Summary */}
+                  {issue.koreanSummary && (
+                    <p className="text-xs text-zinc-600 leading-relaxed line-clamp-2 mb-2">
+                      {issue.koreanSummary}
+                    </p>
+                  )}
+
+                  {/* Meta row */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-zinc-400">
+                      {issue.sourceName && `${issue.sourceName} · `}
+                      {relativeTime(issue.publishedAt)}
+                    </span>
+                    {isValidArticleUrl(issue.sourceUrl) && (
+                      <a
+                        href={issue.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-600 hover:text-blue-800 hover:underline font-medium transition-colors"
+                      >
+                        원문 보기 ↗
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </main>
     </div>
   )

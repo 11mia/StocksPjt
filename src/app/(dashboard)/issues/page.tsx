@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { isValidArticleUrl } from '@/lib/url-utils'
 
 interface Issue {
   id: string
@@ -9,6 +10,7 @@ interface Issue {
   source_url: string | null
   category: string
   published_at: string | null
+  korean_summary: string | null
 }
 
 const CATEGORIES = ['전체', 'geopolitical', 'macro', 'supply_chain', 'political']
@@ -19,41 +21,103 @@ const CATEGORY_LABELS: Record<string, string> = {
   political: '정치',
   '전체': '전체',
 }
+const CATEGORY_COLORS: Record<string, string> = {
+  geopolitical: 'bg-red-100 text-red-700',
+  macro: 'bg-blue-100 text-blue-700',
+  supply_chain: 'bg-amber-100 text-amber-700',
+  political: 'bg-purple-100 text-purple-700',
+}
 
 function IssueList({ category }: { category: string }) {
   const [issues, setIssues] = useState<Issue[] | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const url = category === '전체' ? '/api/issues' : `/api/issues?category=${category}`
+    const url =
+      category === '전체'
+        ? '/api/issues/with-summaries'
+        : `/api/issues/with-summaries?category=${category}`
     fetch(url)
       .then(r => r.json())
-      .then(json => setIssues(json.data ?? []))
-      .catch(() => setIssues([]))
+      .then(json => {
+        setIssues(json.data ?? [])
+        setLoading(false)
+      })
+      .catch(() => {
+        setIssues([])
+        setLoading(false)
+      })
   }, [category])
 
-  if (issues === null) return <p className="text-zinc-500 text-sm">로딩 중...</p>
+  if (loading || issues === null) {
+    return (
+      <div className="flex flex-col gap-3">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="bg-white rounded-xl border border-zinc-200 p-4 animate-pulse">
+            <div className="h-4 bg-zinc-200 rounded w-3/4 mb-2" />
+            <div className="h-3 bg-zinc-100 rounded w-full mb-1" />
+            <div className="h-3 bg-zinc-100 rounded w-2/3" />
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   if (issues.length === 0) return <p className="text-zinc-500 text-sm">이슈가 없습니다.</p>
 
   return (
     <ul className="flex flex-col gap-3">
       {issues.map(issue => (
         <li key={issue.id}>
-          <Link
-            href={`/issues/${issue.id}`}
-            className="block p-4 bg-white rounded-xl border border-zinc-200 hover:border-blue-300 transition-colors"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <h2 className="text-sm font-medium text-zinc-900 leading-snug">{issue.title}</h2>
-              <span className="flex-shrink-0 text-xs px-2 py-0.5 bg-zinc-100 text-zinc-600 rounded-full">
+          <div className="bg-white rounded-xl border border-zinc-200 hover:border-blue-300 hover:shadow-sm transition-all p-4">
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <Link
+                href={`/issues/${issue.id}`}
+                className="text-sm font-semibold text-zinc-900 leading-snug hover:text-blue-700 transition-colors"
+              >
+                {issue.title}
+              </Link>
+              <span
+                className={`flex-shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${
+                  CATEGORY_COLORS[issue.category] ?? 'bg-zinc-100 text-zinc-600'
+                }`}
+              >
                 {CATEGORY_LABELS[issue.category] ?? issue.category}
               </span>
             </div>
-            {issue.published_at && (
-              <p className="mt-1 text-xs text-zinc-400">
-                {new Date(issue.published_at).toLocaleString('ko-KR')}
-              </p>
+
+            {issue.korean_summary ? (
+              <p className="text-sm text-zinc-600 leading-relaxed mb-2">{issue.korean_summary}</p>
+            ) : (
+              <p className="text-xs text-zinc-400 italic mb-2">요약 생성 중...</p>
             )}
-          </Link>
+
+            <div className="flex items-center justify-between">
+              {issue.published_at && (
+                <span className="text-xs text-zinc-400">
+                  {new Date(issue.published_at).toLocaleString('ko-KR')}
+                </span>
+              )}
+              <div className="flex items-center gap-3">
+                {isValidArticleUrl(issue.source_url) && (
+                  <a
+                    href={issue.source_url!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-blue-600 hover:underline font-medium"
+                  >
+                    원문 보기 ↗
+                  </a>
+                )}
+                <Link
+                  href={`/issues/${issue.id}`}
+                  className="text-xs text-zinc-500 hover:text-zinc-800 transition-colors"
+                >
+                  AI 분석 →
+                </Link>
+              </div>
+            </div>
+          </div>
         </li>
       ))}
     </ul>
