@@ -4,7 +4,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { isValidArticleUrl } from '@/lib/url-utils'
 import { calcKeywordScore } from '@/lib/top-news'
 
-export const maxDuration = 60
+export const maxDuration = 120
 
 function checkAuth(request: Request): boolean {
   const secret = process.env.CRON_SECRET
@@ -58,13 +58,13 @@ async function runCollect() {
       .slice(0, 25)
   }
 
-  // 24시간 이내 기사 우선, 없으면 48시간으로 폴백
-  let articles = await fetchArticles(from24h)
-  let usedWindow = '24h'
-  if (articles.length === 0) {
-    articles = await fetchArticles(from48h)
-    usedWindow = '48h'
-  }
+  // 24h · 48h 병렬 호출 — 24h 결과가 있으면 사용, 없으면 48h 폴백
+  const [articles24, articles48] = await Promise.all([
+    fetchArticles(from24h),
+    fetchArticles(from48h),
+  ])
+  const articles = articles24.length > 0 ? articles24 : articles48
+  const usedWindow = articles24.length > 0 ? '24h' : '48h'
 
   if (articles.length === 0) return NextResponse.json({ error: 'No articles found' }, { status: 500 })
 
@@ -77,7 +77,7 @@ async function runCollect() {
 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 6000,
+    max_tokens: 4000,
     system: `당신은 미국 주식 투자자를 위한 글로벌 뉴스 필터링 AI입니다.
 아래 엄격한 기준에 따라 뉴스를 채점하고 TOP 10을 선정합니다.
 모든 출력(한글 제목, 요약, 분석, 태그)은 반드시 한국어로 작성하세요.

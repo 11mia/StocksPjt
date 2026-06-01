@@ -128,9 +128,9 @@ async function fetchTopUsNewsInternal(): Promise<NewsItem[]> {
       .slice(0, 25)
   }
 
-  // 24시간 이내 기사 우선, 없으면 48시간으로 폴백
-  let articles = await fetchFiltered(from24h)
-  if (articles.length === 0) articles = await fetchFiltered(from48h)
+  // 24h · 48h 병렬 호출 — 24h 결과가 있으면 사용, 없으면 48h 폴백
+  const [a24, a48] = await Promise.all([fetchFiltered(from24h), fetchFiltered(from48h)])
+  const articles = a24.length > 0 ? a24 : a48
 
   if (articles.length === 0) throw new Error('No articles found')
 
@@ -148,7 +148,7 @@ async function fetchTopUsNewsInternal(): Promise<NewsItem[]> {
 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 6000,
+    max_tokens: 4000,
     system: `당신은 미국 주식 투자자를 위한 글로벌 뉴스 필터링 AI입니다.
 아래 엄격한 기준에 따라 뉴스를 채점하고 TOP 10을 선정합니다.
 모든 출력(한글 제목, 요약, 분석, 태그)은 반드시 한국어로 작성하세요.
