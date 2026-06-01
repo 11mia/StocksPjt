@@ -38,6 +38,8 @@ export default async function DashboardHome() {
     rank: row.rank,
     koreanTitle: row.korean_title,
     koreanSummary: row.korean_summary,
+    priceImpactReason: row.price_impact_reason ?? '',
+    institutionTrend: row.institution_trend ?? '',
     category: row.category,
     categoryLabel: CATEGORY_LABELS[row.category] ?? row.category,
     importance: row.importance as NewsItem['importance'],
@@ -168,11 +170,33 @@ export default async function DashboardHome() {
                     </div>
                   )}
 
-                  {/* Summary */}
+                  {/* 핵심 3줄 요약 */}
                   {issue.koreanSummary && (
-                    <p className="text-xs text-zinc-600 leading-relaxed line-clamp-2 mb-2">
+                    <p className="text-xs text-zinc-600 leading-relaxed line-clamp-3 mb-2">
                       {issue.koreanSummary}
                     </p>
+                  )}
+
+                  {/* 주가 영향 예측 이유 + 기관 투자 의견 트렌드 */}
+                  {(issue.priceImpactReason || issue.institutionTrend) && (
+                    <div className="mt-2 space-y-1.5 border-t border-zinc-100 pt-2">
+                      {issue.priceImpactReason && (
+                        <div className="flex gap-1.5">
+                          <span className="flex-shrink-0 text-xs font-semibold text-orange-600 mt-0.5">📈 주가전망</span>
+                          <p className="text-xs text-zinc-500 leading-relaxed line-clamp-2">
+                            {issue.priceImpactReason}
+                          </p>
+                        </div>
+                      )}
+                      {issue.institutionTrend && (
+                        <div className="flex gap-1.5">
+                          <span className="flex-shrink-0 text-xs font-semibold text-blue-600 mt-0.5">🏦 기관동향</span>
+                          <p className="text-xs text-zinc-500 leading-relaxed line-clamp-2">
+                            {issue.institutionTrend}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   )}
 
                   {/* Meta row */}

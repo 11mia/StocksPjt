@@ -6,6 +6,8 @@ export interface NewsItem {
   rank: number
   koreanTitle: string
   koreanSummary: string
+  priceImpactReason: string
+  institutionTrend: string
   category: string
   categoryLabel: string
   importance: 'critical' | 'high' | 'medium'
@@ -110,16 +112,23 @@ async function fetchTopUsNewsInternal(): Promise<NewsItem[]> {
   if (!res.ok) throw new Error(`NewsAPI error: ${res.status}`)
   const json = await res.json()
 
-  // 키워드 점수 기반 사전 필터링 — 상위 25개를 Claude에 전달
-  const scored: (RawArticle & { kwScore: number })[] = (json.articles ?? [])
-    .filter((a: RawArticle) => a.title && a.title !== '[Removed]' && isValidArticleUrl(a.url))
+  // 24시간 필터 — publishedAt 기준 코드 레벨에서 명시적 제한
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000)
+
+  // 키워드 점수 기반 사전 필터링 — 24시간 이내 + 키워드 관련도 상위 25개를 Claude에 전달
+  const articles: RawArticle[] = (json.articles ?? [])
+    .filter((a: RawArticle) =>
+      a.title &&
+      a.title !== '[Removed]' &&
+      isValidArticleUrl(a.url) &&
+      a.publishedAt &&
+      new Date(a.publishedAt) >= cutoff
+    )
     .map((a: RawArticle) => ({ ...a, kwScore: calcKeywordScore(a.title, a.description) }))
     .sort((a: { kwScore: number }, b: { kwScore: number }) => b.kwScore - a.kwScore)
     .slice(0, 25)
 
-  const articles: RawArticle[] = scored
-
-  if (articles.length === 0) throw new Error('No articles found')
+  if (articles.length === 0) throw new Error('No articles found within 24 hours')
 
   const anthropicKey = process.env.ANTHROPIC_API_KEY
   if (!anthropicKey) throw new Error('ANTHROPIC_API_KEY not set')
@@ -135,10 +144,10 @@ async function fetchTopUsNewsInternal(): Promise<NewsItem[]> {
 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 4000,
+    max_tokens: 6000,
     system: `당신은 미국 주식 투자자를 위한 글로벌 뉴스 필터링 AI입니다.
 아래 엄격한 기준에 따라 뉴스를 채점하고 TOP 10을 선정합니다.
-모든 출력(한글 제목, 요약, 태그)은 반드시 한국어로 작성하세요.
+모든 출력(한글 제목, 요약, 분석, 태그)은 반드시 한국어로 작성하세요.
 
 [TOP 10 선정 기준]
 
@@ -172,11 +181,16 @@ async function fetchTopUsNewsInternal(): Promise<NewsItem[]> {
 
 7. 테마 태그 (1~2개 추출)
    다음 중에서 뉴스 내용에 가장 적합한 한글 태그를 1~2개 선택하세요:
-   "정책/금리", "지정학", "공급망", "미국증시", "에너지", "배당/BDC", "반도체", "기업실적"`,
+   "정책/금리", "지정학", "공급망", "미국증시", "에너지", "배당/BDC", "반도체", "기업실적"
+
+8. AI 분석 3개 항목 (반드시 한국어로 작성)
+   ① koreanSummary: 핵심 3줄 요약 — 무슨 일인지, 왜 중요한지, 자산 전이 영향을 각각 1문장씩 3문장으로 작성
+   ② priceImpactReason: 주가 영향 예측 이유 — 단기(1~5 거래일) 주가 방향성과 그 근거를 2~3문장으로 작성
+   ③ institutionTrend: 기관 투자 의견 트렌드 — 기관 투자자·애널리스트의 예상 반응 및 섹터별 매수/매도 트렌드를 2~3문장으로 작성`,
     messages: [
       {
         role: 'user',
-        content: `다음 뉴스 목록을 위 기준으로 채점하여 TOP 10을 선정하고 한글 요약과 테마 태그를 작성하세요.
+        content: `다음 뉴스 목록을 위 기준으로 채점하여 TOP 10을 선정하고, 한글 분석 3개 항목과 테마 태그를 작성하세요.
 
 ${articlesText}
 
@@ -190,7 +204,9 @@ ${articlesText}
       "marketScore": <1~5 정수>,
       "totalScore": <urgencyScore + marketScore>,
       "koreanTitle": "<핵심 내용을 담은 한글 제목 (35자 이내)>",
-      "koreanSummary": "<무슨 일이 일어났는지, 왜 중요한지, S&P500·금리·달러 등 자산 전이 영향을 포함한 2문장 한글 요약>",
+      "koreanSummary": "<핵심 3줄 요약: 무슨 일(1문장) + 왜 중요한지(1문장) + S&P500·금리·달러 등 자산 전이 영향(1문장)>",
+      "priceImpactReason": "<주가 영향 예측 이유: 단기 주가 방향성과 근거 2~3문장>",
+      "institutionTrend": "<기관 투자 의견 트렌드: 기관 투자자 예상 반응 및 섹터 매수/매도 트렌드 2~3문장>",
       "category": "<geopolitical|macro|supply_chain|fundamental>",
       "importance": "<critical|high|medium>",
       "tags": ["<태그1>", "<태그2 선택적>"]
@@ -217,6 +233,8 @@ ${articlesText}
       totalScore: number
       koreanTitle: string
       koreanSummary: string
+      priceImpactReason?: string
+      institutionTrend?: string
       category: string
       importance: string
       tags?: string[]
@@ -229,6 +247,8 @@ ${articlesText}
         rank: item.rank,
         koreanTitle: item.koreanTitle,
         koreanSummary: item.koreanSummary,
+        priceImpactReason: item.priceImpactReason ?? '',
+        institutionTrend: item.institutionTrend ?? '',
         category: item.category,
         categoryLabel: CATEGORY_LABELS[item.category] ?? item.category,
         importance: item.importance as NewsItem['importance'],
