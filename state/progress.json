@@ -1,7 +1,7 @@
 {
-  "current_sprint": "e2e-vercel",
+  "current_sprint": "bugfix-01",
   "overall_status": "completed",
-  "last_updated": "2026-06-01",
+  "last_updated": "2026-06-05",
   "sprints": {
     "sprint-01": {
       "status": "completed",
@@ -75,12 +75,30 @@
       ],
       "in_progress_tasks": [],
       "blocked_tasks": []
+    },
+    "bugfix-01": {
+      "status": "completed",
+      "goal": "회원가입 불가 + 데이터 미갱신 버그 수정 및 E2E 12/12 통과",
+      "completed_tasks": [
+        "미들웨어 matcher에 api/auth/signup 추가 (회원가입 리다이렉트 버그 수정)",
+        "ratings/collect에 GET 핸들러 추가 (Vercel Cron GET 요청 대응)",
+        "top-news/collect cron 추가 (vercel.json)",
+        "Vercel 환경변수 BOM 오염 재발 수정 (SERVICE_ROLE_KEY, ANTHROPIC_API_KEY, NEWS_API_KEY, POLYGON_API_KEY, SUPABASE_URL)",
+        "maxDuration 120→60 (Hobby 플랜 제한)",
+        "Haiku 모델로 교체 + 처리 기사 감소 (60초 내 완료 최적화)",
+        "SignOutButton 풀 페이지 리로드로 수정 (로그아웃 리다이렉트 타이밍 버그)",
+        "e2e 테스트 TOP 7 → TOP 10 텍스트 수정",
+        "E2E 12/12 통과 (claude-test-tan.vercel.app)"
+      ],
+      "in_progress_tasks": [],
+      "blocked_tasks": []
     }
   },
   "quality_scores": {
     "sprint-01": 85,
     "sprint-02": 82,
-    "sprint-03": 80
+    "sprint-03": 80,
+    "bugfix-01": 100
   },
   "environment": {
     "supabase_project": "eecwisonxrrkavatqtci",
