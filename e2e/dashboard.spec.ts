@@ -23,7 +23,7 @@ test.describe('대시보드 (로그인 필요)', () => {
 
   test('미국 주요 이슈 TOP 7 섹션이 표시된다', async ({ page }) => {
     // 페이지 로딩 (AI 요약 포함, 최대 60초 대기)
-    await expect(page.getByText('오늘의 미국 주요 이슈 TOP 7')).toBeVisible({ timeout: 60000 })
+    await expect(page.getByText('오늘의 미국 주요 이슈 TOP 10')).toBeVisible({ timeout: 60000 })
     // 이슈 목록이 렌더링되었는지 확인
     const issueList = page.locator('[data-testid="top-issues-list"]')
     await expect(issueList).toBeVisible({ timeout: 60000 })
@@ -33,7 +33,7 @@ test.describe('대시보드 (로그인 필요)', () => {
   })
 
   test('이슈 카드에 원문 보기 링크가 있다', async ({ page }) => {
-    await expect(page.getByText('오늘의 미국 주요 이슈 TOP 7')).toBeVisible({ timeout: 60000 })
+    await expect(page.getByText('오늘의 미국 주요 이슈 TOP 10')).toBeVisible({ timeout: 60000 })
     const issueList = page.locator('[data-testid="top-issues-list"]')
     await expect(issueList).toBeVisible({ timeout: 60000 })
     // 원문 보기 링크가 최소 1개 이상 존재하는지 확인

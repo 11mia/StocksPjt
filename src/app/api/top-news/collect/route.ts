@@ -4,7 +4,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { isValidArticleUrl } from '@/lib/url-utils'
 import { calcKeywordScore } from '@/lib/top-news'
 
-export const maxDuration = 120
+export const maxDuration = 60
 
 function checkAuth(request: Request): boolean {
   const secret = process.env.CRON_SECRET
