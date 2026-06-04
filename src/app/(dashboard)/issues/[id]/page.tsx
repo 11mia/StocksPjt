@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
-import AIAnalysisPanel from '@/features/analysis/AIAnalysisPanel'
+import AIAnalysisList from '@/features/analysis/AIAnalysisList'
 import { getIssueSummaries } from '@/lib/issue-summaries'
 import { isValidArticleUrl } from '@/lib/url-utils'
 
@@ -107,11 +107,7 @@ export default async function IssueDetailPage({
       {tickers.length > 0 && (
         <div className="mt-4">
           <h2 className="text-base font-semibold text-zinc-900 mb-3">AI 영향 분석</h2>
-          <div className="flex flex-col gap-3">
-            {tickers.map(ticker => (
-              <AIAnalysisPanel key={ticker} issueId={issue.id} ticker={ticker} />
-            ))}
-          </div>
+          <AIAnalysisList tickers={tickers} issueId={issue.id} />
         </div>
       )}
 

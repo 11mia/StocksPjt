@@ -1,7 +1,5 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-
 interface Analysis {
   id: string
   summary: string
@@ -18,44 +16,15 @@ const LABEL_COLORS: Record<string, string> = {
   '강한 악재': 'text-red-700 bg-red-50',
 }
 
-export default function AIAnalysisPanel({ issueId, ticker }: { issueId: string; ticker: string }) {
-  const [analysis, setAnalysis] = useState<Analysis | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [fetched, setFetched] = useState(false)
+interface Props {
+  ticker: string
+  analysis: Analysis | null
+  loading: boolean
+  error: string | null
+  onAnalyze: () => void
+}
 
-  useEffect(() => {
-    // 기존 분석 확인
-    fetch(`/api/analyze`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ issue_id: issueId, ticker }),
-    })
-      .then(r => r.json())
-      .then(json => {
-        if (json.data) setAnalysis(json.data)
-        setFetched(true)
-      })
-      .catch(() => setFetched(true))
-  }, [issueId, ticker])
-
-  async function handleAnalyze() {
-    setLoading(true)
-    setError(null)
-    const res = await fetch('/api/analyze', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ issue_id: issueId, ticker }),
-    })
-    const json = await res.json()
-    if (json.error) {
-      setError(json.error)
-    } else {
-      setAnalysis(json.data)
-    }
-    setLoading(false)
-  }
-
+export default function AIAnalysisPanel({ ticker, analysis, loading, error, onAnalyze }: Props) {
   const scoreColor = analysis
     ? analysis.impact_score > 20 ? 'text-green-600'
     : analysis.impact_score < -20 ? 'text-red-600'
@@ -73,25 +42,20 @@ export default function AIAnalysisPanel({ issueId, ticker }: { issueId: string; 
         )}
       </div>
 
-      {!fetched && <p className="text-xs text-zinc-400">확인 중...</p>}
+      {loading && <p className="text-xs text-zinc-400">AI 분석 중...</p>}
 
-      {fetched && !analysis && !loading && (
-        <button
-          onClick={handleAnalyze}
-          className="text-xs text-blue-600 hover:underline"
-        >
+      {!loading && !analysis && !error && (
+        <button onClick={onAnalyze} className="text-xs text-blue-600 hover:underline">
           AI 분석 실행
         </button>
       )}
-
-      {loading && <p className="text-xs text-zinc-400">AI 분석 중...</p>}
 
       {error && <p className="text-xs text-red-500">{error}</p>}
 
       {analysis && (
         <div className="mt-2 flex flex-col gap-1">
           <div className="flex items-center gap-2">
-            <span className={`text-base font-bold ${scoreColor}`}>
+            <span data-testid="impact-score" className={`text-base font-bold ${scoreColor}`}>
               {analysis.impact_score > 0 ? '+' : ''}{analysis.impact_score}
             </span>
             <span className="text-xs text-zinc-400">영향 점수</span>
