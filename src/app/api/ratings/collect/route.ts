@@ -2,19 +2,16 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 const POLYGON_BASE = 'https://api.polygon.io'
 
-export async function POST(request: Request) {
+function checkAuth(request: Request): boolean {
   const secret = process.env.CRON_SECRET
-  if (secret) {
-    const auth = request.headers.get('authorization')
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: 'Unauthorized', code: 401 }, { status: 401 })
-    }
-  }
+  if (!secret) return true
+  return request.headers.get('authorization') === `Bearer ${secret}`
+}
 
+async function runCollect() {
   const supabase = createAdminClient()
 
   try {
-    // 현재 watchlist에 있는 모든 고유 ticker 조회
     const { data: watchlistItems } = await supabase
       .from('watchlist_items')
       .select('ticker')
@@ -26,7 +23,7 @@ export async function POST(request: Request) {
     const tickers = [...new Set(watchlistItems.map(w => w.ticker))]
     const ratings = []
 
-    for (const ticker of tickers.slice(0, 10)) { // 최대 10개 (API 한도 고려)
+    for (const ticker of tickers.slice(0, 10)) {
       try {
         const controller = new AbortController()
         const timer = setTimeout(() => controller.abort(), 5000)
@@ -40,7 +37,6 @@ export async function POST(request: Request) {
         if (!res.ok) continue
         const json = await res.json()
 
-        // Polygon analyst ratings (simplyfied mock for free tier)
         if (json.results?.length) {
           ratings.push({
             ticker,
@@ -63,4 +59,19 @@ export async function POST(request: Request) {
   } catch (err) {
     return NextResponse.json({ error: String(err), code: 500 }, { status: 500 })
   }
+}
+
+// Vercel Cron은 GET 요청을 보냄
+export async function GET(request: Request) {
+  if (!checkAuth(request)) {
+    return NextResponse.json({ error: 'Unauthorized', code: 401 }, { status: 401 })
+  }
+  return runCollect()
+}
+
+export async function POST(request: Request) {
+  if (!checkAuth(request)) {
+    return NextResponse.json({ error: 'Unauthorized', code: 401 }, { status: 401 })
+  }
+  return runCollect()
 }

@@ -1,6 +1,7 @@
 {
   "crons": [
-    { "path": "/api/issues/collect", "schedule": "0 8 * * *" },
+    { "path": "/api/issues/collect", "schedule": "0 */6 * * *" },
+    { "path": "/api/top-news/collect", "schedule": "30 */6 * * *" },
     { "path": "/api/ratings/collect", "schedule": "0 2 * * *" }
   ]
 }
