@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-const POLYGON_BASE = 'https://api.polygon.io'
+
+const FINNHUB_BASE = 'https://finnhub.io/api/v1'
 
 function checkAuth(request: Request): boolean {
   const secret = process.env.CRON_SECRET
@@ -10,68 +11,70 @@ function checkAuth(request: Request): boolean {
 
 async function runCollect() {
   const supabase = createAdminClient()
+  const apiKey = process.env.FINNHUB_API_KEY
+  if (!apiKey) return NextResponse.json({ error: 'FINNHUB_API_KEY not set' }, { status: 500 })
 
-  try {
-    const { data: watchlistItems } = await supabase
-      .from('watchlist_items')
-      .select('ticker')
+  const { data: watchlistItems } = await supabase
+    .from('watchlist_items')
+    .select('ticker')
+  if (!watchlistItems?.length) return NextResponse.json({ data: { collected: 0 } })
 
-    if (!watchlistItems?.length) {
-      return NextResponse.json({ data: { collected: 0 } })
-    }
+  const tickers = [...new Set(watchlistItems.map(w => w.ticker))]
+  let collected = 0
 
-    const tickers = [...new Set(watchlistItems.map(w => w.ticker))]
-    const ratings = []
+  for (const ticker of tickers.slice(0, 20)) {
+    try {
+      const res = await fetch(
+        `${FINNHUB_BASE}/stock/recommendation?symbol=${ticker}&token=${apiKey}`,
+        { next: { revalidate: 0 } }
+      )
+      if (!res.ok) continue
+      const data = await res.json()
+      if (!Array.isArray(data) || data.length === 0) continue
 
-    for (const ticker of tickers.slice(0, 10)) {
-      try {
-        const controller = new AbortController()
-        const timer = setTimeout(() => controller.abort(), 5000)
+      // 최근 3개월 데이터만 사용
+      const recent = data.slice(0, 3) as Array<{
+        period: string
+        buy: number
+        strongBuy: number
+        hold: number
+        sell: number
+        strongSell: number
+      }>
 
-        const res = await fetch(
-          `${POLYGON_BASE}/v2/reference/financials/${ticker}?apiKey=${process.env.POLYGON_API_KEY}`,
-          { signal: controller.signal }
-        )
-        clearTimeout(timer)
+      // 기존 데이터 삭제 후 재삽입
+      await supabase
+        .from('institutional_ratings')
+        .delete()
+        .eq('ticker', ticker)
+        .eq('firm', 'Finnhub Consensus')
 
-        if (!res.ok) continue
-        const json = await res.json()
+      const rows = recent.flatMap(r => [
+        { ticker, firm: 'Finnhub Consensus', rating: 'strongBuy', price_target: r.strongBuy, rated_at: r.period },
+        { ticker, firm: 'Finnhub Consensus', rating: 'buy',       price_target: r.buy,       rated_at: r.period },
+        { ticker, firm: 'Finnhub Consensus', rating: 'hold',      price_target: r.hold,      rated_at: r.period },
+        { ticker, firm: 'Finnhub Consensus', rating: 'sell',      price_target: r.sell,      rated_at: r.period },
+        { ticker, firm: 'Finnhub Consensus', rating: 'strongSell',price_target: r.strongSell,rated_at: r.period },
+      ]).filter(row => (row.price_target ?? 0) > 0)
 
-        if (json.results?.length) {
-          ratings.push({
-            ticker,
-            firm: 'Polygon.io',
-            rating: 'hold',
-            price_target: null,
-            rated_at: new Date().toISOString(),
-          })
-        }
-      } catch {
-        // 개별 ticker 실패는 무시
+      if (rows.length > 0) {
+        await supabase.from('institutional_ratings').insert(rows)
+        collected++
       }
+    } catch {
+      // 개별 ticker 실패 무시
     }
-
-    if (ratings.length > 0) {
-      await supabase.from('institutional_ratings').insert(ratings)
-    }
-
-    return NextResponse.json({ data: { collected: ratings.length } })
-  } catch (err) {
-    return NextResponse.json({ error: String(err), code: 500 }, { status: 500 })
   }
+
+  return NextResponse.json({ data: { collected } })
 }
 
-// Vercel Cron은 GET 요청을 보냄
 export async function GET(request: Request) {
-  if (!checkAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized', code: 401 }, { status: 401 })
-  }
+  if (!checkAuth(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   return runCollect()
 }
 
 export async function POST(request: Request) {
-  if (!checkAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized', code: 401 }, { status: 401 })
-  }
+  if (!checkAuth(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   return runCollect()
 }
