@@ -68,8 +68,28 @@ async function runCollect() {
 
   if (articles.length === 0) return NextResponse.json({ error: 'No articles found' }, { status: 500 })
 
+  // 중복 기사 제거: 제목 단어 집합 기준 60% 이상 겹치면 점수 높은 것만 유지
+  function titleWords(title: string): Set<string> {
+    return new Set(
+      title.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 3)
+    )
+  }
+  function isSimilar(a: string, b: string): boolean {
+    const wa = titleWords(a)
+    const wb = titleWords(b)
+    if (wa.size === 0 || wb.size === 0) return false
+    const intersection = [...wa].filter(w => wb.has(w)).length
+    return intersection / Math.min(wa.size, wb.size) >= 0.6
+  }
+  const deduped: typeof articles = []
+  for (const article of articles) {
+    if (!deduped.some(kept => isSimilar(kept.title, article.title))) {
+      deduped.push(article)
+    }
+  }
+
   // 입력 토큰 최소화 — URL/출처 제거, 상위 10개만 전달 (Hobby 60s 제한 대응)
-  const topArticles = articles.slice(0, 10)
+  const topArticles = deduped.slice(0, 10)
   const client = new Anthropic({ apiKey: anthropicKey })
   const articlesText = topArticles
     .map((a, i) =>
