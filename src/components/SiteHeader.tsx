@@ -7,8 +7,8 @@ import SignOutButton from '@/features/auth/SignOutButton'
 
 const NAV_LINKS = [
   { href: '/', label: 'Dashboard' },
-  { href: '/watchlist', label: 'Watchlist' },
   { href: '/issues', label: '글로벌 이슈' },
+  { href: '/watchlist', label: 'Watchlist' },
   { href: '/alerts', label: '알림' },
 ]
 
