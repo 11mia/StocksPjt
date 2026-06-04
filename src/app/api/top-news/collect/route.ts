@@ -68,32 +68,31 @@ async function runCollect() {
 
   if (articles.length === 0) return NextResponse.json({ error: 'No articles found' }, { status: 500 })
 
-  // 입력 토큰 최소화 — URL/출처 제거, 상위 15개만 전달
-  const topArticles = articles.slice(0, 15)
+  // 입력 토큰 최소화 — URL/출처 제거, 상위 10개만 전달 (Hobby 60s 제한 대응)
+  const topArticles = articles.slice(0, 10)
   const client = new Anthropic({ apiKey: anthropicKey })
   const articlesText = topArticles
     .map((a, i) =>
-      `[${i + 1}] ${a.title} | ${a.description?.slice(0, 80) ?? ''} | ${a.publishedAt}`
+      `[${i + 1}] ${a.title} | ${a.description?.slice(0, 60) ?? ''}`
     )
     .join('\n')
 
   const response = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 5000,
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 3000,
     system: `미국 주식 투자자용 뉴스 필터링 AI. TOP 10 선정 후 한국어로 분석.
-스코어링: urgencyScore(1~5 시장긴급성) + marketScore(1~5 미국증시연관도) 합산 상위 10개 선출.
-키워드 우선: Fed/FOMC/금리/관세/반도체/원유/제재/무역전쟁/Treasury Yield/Earnings/BDC.
+스코어링: urgencyScore(1~5) + marketScore(1~5) 합산.
 카테고리: geopolitical/macro/supply_chain/fundamental.
 importance: 8~10→critical, 5~7→high, 2~4→medium.
-태그(1~2개): "정책/금리","지정학","공급망","미국증시","에너지","배당/BDC","반도체","기업실적".`,
+태그(1개): "정책/금리","지정학","공급망","미국증시","에너지","배당/BDC","반도체","기업실적".`,
     messages: [
       {
         role: 'user',
-        content: `뉴스 ${topArticles.length}개를 채점해 TOP 10을 선정하고 아래 JSON으로만 응답:
+        content: `뉴스 ${topArticles.length}개 TOP 10 선정. JSON만 응답:
 
 ${articlesText}
 
-{"issues":[{"rank":1,"articleIndex":<1~${topArticles.length}>,"urgencyScore":<1~5>,"marketScore":<1~5>,"totalScore":<합계>,"koreanTitle":"<35자이내>","koreanSummary":"<무슨일+왜중요+자산영향 각1문장>","priceImpactReason":"<단기주가방향+근거 1~2문장>","institutionTrend":"<기관반응+섹터트렌드 1~2문장>","category":"<geopolitical|macro|supply_chain|fundamental>","importance":"<critical|high|medium>","tags":["<태그1>"]}]}`,
+{"issues":[{"rank":1,"articleIndex":<1~${topArticles.length}>,"urgencyScore":<1~5>,"marketScore":<1~5>,"totalScore":<합계>,"koreanTitle":"<30자이내>","koreanSummary":"<2문장>","priceImpactReason":"<1문장>","institutionTrend":"<1문장>","category":"<geopolitical|macro|supply_chain|fundamental>","importance":"<critical|high|medium>","tags":["<태그1>"]}]}`,
       },
     ],
   })
