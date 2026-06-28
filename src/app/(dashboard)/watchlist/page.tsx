@@ -187,7 +187,7 @@ export default function WatchlistPage() {
 
   // ─── 마운트: 전체 갱신 (페이지 접속마다) ──────────────────────────
   useEffect(() => {
-    refreshAll()
+    refreshAll() // eslint-disable-line react-hooks/set-state-in-effect
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── 자동 폴링: 30초마다 시세 갱신 (Finnhub 캐시 TTL 기준) ────────
@@ -199,7 +199,7 @@ export default function WatchlistPage() {
   // ─── "X초 전" 라벨 업데이트 ──────────────────────────────────────
   useEffect(() => {
     if (!lastUpdated) return
-    setAgoLabel(formatAgo(lastUpdated))
+    setAgoLabel(formatAgo(lastUpdated)) // eslint-disable-line react-hooks/set-state-in-effect
     const id = setInterval(() => setAgoLabel(formatAgo(lastUpdated)), 5000)
     return () => clearInterval(id)
   }, [lastUpdated])

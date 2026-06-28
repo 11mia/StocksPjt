@@ -12,6 +12,7 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url)
   const category = searchParams.get('category')
+  const q = searchParams.get('q')?.trim()
 
   let query = supabase
     .from('global_issues')
@@ -20,6 +21,7 @@ export async function GET(request: Request) {
     .limit(20)
 
   if (category && category !== '전체') query = query.eq('category', category)
+  if (q) query = query.ilike('title', `%${q}%`)
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message, code: 500 }, { status: 500 })

@@ -52,6 +52,21 @@ test.describe('대시보드 (로그인 필요)', () => {
     await expect(page.getByRole('heading', { name: '글로벌 이슈' })).toBeVisible()
   })
 
+  test('이슈 검색창이 표시되고 입력할 수 있다', async ({ page }) => {
+    await page.goto('/issues')
+    const searchInput = page.getByTestId('issue-search-input')
+    await expect(searchInput).toBeVisible()
+    await searchInput.fill('inflation')
+    await expect(searchInput).toHaveValue('inflation')
+  })
+
+  test('존재하지 않는 키워드로 검색하면 결과 없음 메시지가 표시된다', async ({ page }) => {
+    await page.goto('/issues')
+    const searchInput = page.getByTestId('issue-search-input')
+    await searchInput.fill('zzz_no_such_issue_xyz123')
+    await expect(page.getByText('검색 결과가 없습니다.')).toBeVisible({ timeout: 10000 })
+  })
+
   test('알림 페이지가 정상 렌더링된다', async ({ page }) => {
     await page.goto('/alerts')
     await expect(page.getByText('알림 센터')).toBeVisible()

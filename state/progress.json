@@ -1,7 +1,7 @@
 {
-  "current_sprint": "bugfix-01",
+  "current_sprint": "feature-issue-search",
   "overall_status": "completed",
-  "last_updated": "2026-06-05",
+  "last_updated": "2026-06-28",
   "sprints": {
     "sprint-01": {
       "status": "completed",
@@ -92,6 +92,21 @@
       ],
       "in_progress_tasks": [],
       "blocked_tasks": []
+    },
+    "feature-issue-search": {
+      "status": "completed",
+      "goal": "글로벌 이슈 피드에 제목 검색 기능 추가",
+      "completed_tasks": [
+        "GET /api/issues, /api/issues/with-summaries 에 q(검색어) 파라미터 추가 (title ilike)",
+        "/issues 페이지에 검색 입력창 추가 (300ms 디바운스, 카테고리 필터와 결합)",
+        "e2e 테스트 2건 추가 (검색 입력, 검색 결과 없음 메시지)",
+        "watchlist/page.tsx 사전 존재 react-hooks/set-state-in-effect lint 오류 수정 (verify 통과를 위해 필요)",
+        "npm run verify 통과 (Supabase 자격증명은 환경변수 미존재로 빌드 검증용 placeholder 사용, 커밋되지 않음)"
+      ],
+      "in_progress_tasks": [],
+      "blocked_tasks": [
+        "이 샌드박스 환경은 네트워크 정책상 vercel.app/supabase.co 등 외부 도메인 접근이 차단되어 실제 e2e 브라우저 테스트 및 프로덕션 배포 트리거를 직접 실행할 수 없음 — 브랜치 푸시로 위임"
+      ]
     }
   },
   "quality_scores": {

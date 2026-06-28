@@ -9,6 +9,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const category = searchParams.get('category')
   const id = searchParams.get('id')
+  const q = searchParams.get('q')?.trim()
 
   let query = supabase
     .from('global_issues')
@@ -18,6 +19,7 @@ export async function GET(request: Request) {
 
   if (category) query = query.eq('category', category)
   if (id) query = query.eq('id', id).limit(1)
+  if (q) query = query.ilike('title', `%${q}%`)
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message, code: 500 }, { status: 500 })
