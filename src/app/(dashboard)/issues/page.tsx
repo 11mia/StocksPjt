@@ -35,15 +35,15 @@ const CATEGORY_VARIANT: Record<string, BadgeVariant> = {
   political: 'geopolitical',
 }
 
-function IssueList({ category }: { category: string }) {
+function IssueList({ category, query }: { category: string; query: string }) {
   const [issues, setIssues] = useState<Issue[] | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const url =
-      category === '전체'
-        ? '/api/issues/with-summaries'
-        : `/api/issues/with-summaries?category=${category}`
+    const params = new URLSearchParams()
+    if (category !== '전체') params.set('category', category)
+    if (query) params.set('q', query)
+    const url = `/api/issues/with-summaries${params.size > 0 ? `?${params.toString()}` : ''}`
     fetch(url)
       .then(r => r.json())
       .then(json => {
@@ -54,7 +54,7 @@ function IssueList({ category }: { category: string }) {
         setIssues([])
         setLoading(false)
       })
-  }, [category])
+  }, [category, query])
 
   if (loading || issues === null) {
     return (
@@ -70,7 +70,13 @@ function IssueList({ category }: { category: string }) {
     )
   }
 
-  if (issues.length === 0) return <p className="text-zinc-500 text-sm">이슈가 없습니다.</p>
+  if (issues.length === 0) {
+    return (
+      <p className="text-zinc-500 text-sm">
+        {query ? '검색 결과가 없습니다.' : '이슈가 없습니다.'}
+      </p>
+    )
+  }
 
   return (
     <ul className="flex flex-col gap-3">
@@ -131,10 +137,27 @@ function IssueList({ category }: { category: string }) {
 
 export default function IssuesPage() {
   const [category, setCategory] = useState('전체')
+  const [search, setSearch] = useState('')
+  const [query, setQuery] = useState('')
+
+  useEffect(() => {
+    const timer = setTimeout(() => setQuery(search.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [search])
 
   return (
     <div className="max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold text-zinc-900 mb-6">글로벌 이슈</h1>
+
+      <input
+        type="search"
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        placeholder="이슈 검색..."
+        aria-label="이슈 검색"
+        data-testid="issue-search-input"
+        className="w-full mb-4 px-4 py-2 text-sm rounded-lg border border-zinc-300 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+      />
 
       <div className="flex gap-2 mb-6 flex-wrap">
         {CATEGORIES.map(cat => (
@@ -152,7 +175,7 @@ export default function IssuesPage() {
         ))}
       </div>
 
-      <IssueList key={category} category={category} />
+      <IssueList key={`${category}:${query}`} category={category} query={query} />
     </div>
   )
 }
